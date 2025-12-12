@@ -58,7 +58,7 @@ SpriteJugador::SpriteJugador(sf::RenderWindow& win) :
     bulletFrameHeight = bulletTexture.getSize().y;
 
     // Start the player near the bottom of the window (slightly above the bottom edge)
-    position = sf::Vector2f(window.getSize().x / 2.0f - frameWidthRun / 2.0f, window.getSize().y - frameHeightRun - 10.0f);
+    position = sf::Vector2f(50.0f, window.getSize().y / 2.0f - frameHeightRun / 2.0f); // Left side of screen
 }
 
 void SpriteJugador::update(float deltaTime, float collisionY, float floorY) {

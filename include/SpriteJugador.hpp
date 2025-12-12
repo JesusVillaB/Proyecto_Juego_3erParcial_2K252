@@ -10,6 +10,7 @@ public:
     ~SpriteJugador();
     void update(float deltaTime, float collisionY, float floorY);
     void draw(sf::RenderWindow& window);
+    sf::Vector2f getPosition() const { return position; }
 
 private:
     sf::RenderWindow& window;

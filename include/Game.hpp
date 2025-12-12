@@ -2,19 +2,22 @@
 #define GAME_HPP
 
 #include <SFML/Graphics.hpp>
+#include <vector>
 #include "../include/SpriteJugador.hpp"
 #include "../include/Fondo.hpp"
+#include "../include/Enemigo.hpp"
 
 class Game {
 public:
-    Game();
+    Game(sf::RenderWindow& window);
     ~Game();
     void run();
 
 private:
-    sf::RenderWindow window;
+    sf::RenderWindow& window;
     Fondo fondo;
     SpriteJugador spriteJugador;
+    std::vector<Enemigo> enemigos;
     sf::Clock clock;
 };
 

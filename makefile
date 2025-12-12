@@ -5,13 +5,13 @@ DEPFLAGS = -MMD -MP
 # Debug target flags (AddressSanitizer helps find memory errors)
 DEBUG_FLAGS = -g -O0 -fsanitize=address,undefined
 
-LDFLAGS = -lsfml-graphics -lsfml-window -lsfml-system
+LDFLAGS = -lsfml-graphics -lsfml-window -lsfml-system -lsfml-audio
 SRC_DIR = src
 BIN_DIR = bin
 INCLUDE_DIR = include
 
 # Lista explícita de archivos fuente a compilar
-SOURCES = $(SRC_DIR)/main.cpp $(SRC_DIR)/Game.cpp $(SRC_DIR)/Fondo.cpp $(SRC_DIR)/SpriteJugador.cpp
+SOURCES = $(SRC_DIR)/main.cpp $(SRC_DIR)/Game.cpp $(SRC_DIR)/Fondo.cpp $(SRC_DIR)/SpriteJugador.cpp $(SRC_DIR)/02_Enemigo.cpp $(SRC_DIR)/SoundManager.cpp $(SRC_DIR)/Button.cpp $(SRC_DIR)/MenuElement.cpp $(SRC_DIR)/Menu.cpp
 OBJECTS = $(SOURCES:$(SRC_DIR)/%.cpp=$(BIN_DIR)/%.o)
 
 # Crear directorio bin si no existe
