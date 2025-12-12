@@ -12,6 +12,8 @@ public:
     void drawForeground(sf::RenderWindow& window);
     float getFloorY() const; // returns the floor Y coordinate where the player should stand
     float getCollisionY() const; // returns the top collision Y coordinate (upper boundary)
+    sf::Vector2f getBackgroundPosition() const;
+    bool isAtEnd() const;
 
 private:
     sf::Texture backgroundTex;

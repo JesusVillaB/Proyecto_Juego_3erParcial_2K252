@@ -1,9 +1,18 @@
 #include "../include/SpriteJugador.hpp"
 #include <stdexcept>
 #include <iostream>
+#include <cmath>
 
 SpriteJugador::SpriteJugador(sf::RenderWindow& win) : 
     window(win), 
+    hitCount(0),
+    isHit(false),
+    shakeOffset(0.0f),
+    isDying(false),
+    deathFrame(0),
+    numDeathFrames(10), // Assume 10 frames
+    deathFrameWidth(0),
+    deathFrameHeight(0),
     animationClock(),
     frameTime(0.1f), 
     currentFrame(0), 
@@ -47,6 +56,34 @@ SpriteJugador::SpriteJugador(sf::RenderWindow& win) :
         throw std::runtime_error("Error loading bullet texture");
     }
 
+    // Load health textures
+    if (!healthTextures[0].loadFromFile("assets/Efectos visuales/VIDA_10.png")) {
+        throw std::runtime_error("Error loading VIDA_10 texture");
+    }
+    if (!healthTextures[1].loadFromFile("assets/Efectos visuales/VIDA_8.png")) {
+        throw std::runtime_error("Error loading VIDA_8 texture");
+    }
+    if (!healthTextures[2].loadFromFile("assets/Efectos visuales/VIDA_7.png")) {
+        throw std::runtime_error("Error loading VIDA_7 texture");
+    }
+    if (!healthTextures[3].loadFromFile("assets/Efectos visuales/VIDA_4.png")) {
+        throw std::runtime_error("Error loading VIDA_4 texture");
+    }
+    if (!healthTextures[4].loadFromFile("assets/Efectos visuales/VIDA_1.png")) {
+        throw std::runtime_error("Error loading VIDA_1 texture");
+    }
+    healthSprite.setTexture(healthTextures[0]);
+    healthSprite.setPosition(10, 10); // Top left
+
+    // Load death texture
+    if (!deathTexture.loadFromFile("assets/Jugador/Player_death_type1.png")) {
+        throw std::runtime_error("Error loading death texture");
+    }
+    deathFrameWidth = deathTexture.getSize().x / numDeathFrames;
+    deathFrameHeight = deathTexture.getSize().y;
+    deathSprite.setTexture(deathTexture);
+    deathSprite.setPosition(position); // Will update to current position
+
     // Inicializar tamaños de frame después de cargar texturas
     frameWidthRun = texture.getSize().x / numFrames;
     frameHeightRun = texture.getSize().y;
@@ -62,6 +99,24 @@ SpriteJugador::SpriteJugador(sf::RenderWindow& win) :
 }
 
 void SpriteJugador::update(float deltaTime, float collisionY, float floorY) {
+    if (isDying) {
+        // Advance death animation according to 1 second total duration
+        if (deathFrame < numDeathFrames) {
+            if (deathClock.getElapsedTime().asSeconds() >= deathFrameTime) {
+                deathFrame++;
+                deathClock.restart();
+            }
+        }
+        return; // No other updates during death
+    }
+
+    // Hit vibration
+    if (isHit) {
+        if (hitClock.getElapsedTime().asSeconds() > 0.5f) {
+            isHit = false;
+        }
+    }
+
     // Detectar movimiento
     bool isMoving = sf::Keyboard::isKeyPressed(sf::Keyboard::Left) || sf::Keyboard::isKeyPressed(sf::Keyboard::Right) ||
                     sf::Keyboard::isKeyPressed(sf::Keyboard::Up) || sf::Keyboard::isKeyPressed(sf::Keyboard::Down);
@@ -132,8 +187,34 @@ void SpriteJugador::update(float deltaTime, float collisionY, float floorY) {
         }
 
         // Limpiar attackTrail
+        // Limpiar runTrail
+        runTrail.clear();
+        runTrailFrame.clear();
+
+        // Agregar a reloadTrail
+        if (!isWaiting) {
+            reloadTrail.push_back(position);
+            reloadTrailFrame.push_back(reloadCurrentFrame);
+            if (reloadTrail.size() > maxTrail) {
+                reloadTrail.erase(reloadTrail.begin());
+                reloadTrailFrame.erase(reloadTrailFrame.begin());
+            }
+        }
+
+        // Limpiar attackTrail
         attackTrail.clear();
         attackTrailFrame.clear();
+    }
+
+    // Apply hit vibration (compute offset only, do not change position)
+    if (isHit) {
+        // Increase amplitude and slow frequency for visibility
+        shakeOffset = 8.0f * std::sin(hitClock.getElapsedTime().asSeconds() * 12.0f);
+        if (hitClock.getElapsedTime().asSeconds() > 0.5f) {
+            isHit = false; // stop vibration after 0.5s
+        }
+    } else {
+        shakeOffset = 0.0f;
     }
 
     // Actualizar ataque using clock
@@ -231,7 +312,7 @@ void SpriteJugador::draw(sf::RenderWindow& window) {
         window.draw(trailSprite);
     }
 
-    // Dibujar proyectiles
+    // Draw projectiles
     for (const auto& proj : projectiles) {
         sf::Sprite bulletSprite(bulletTexture);
         bulletSprite.setPosition(proj.position);
@@ -239,23 +320,90 @@ void SpriteJugador::draw(sf::RenderWindow& window) {
         window.draw(bulletSprite);
     }
 
-    // Dibujar jugador
-    sf::Sprite playerSprite;
-    if (isAttacking) {
-        playerSprite.setTexture(attackTexture);
-        playerSprite.setTextureRect(sf::IntRect(attackFrames[attackCurrentIndex] * frameWidthAttack, 0, frameWidthAttack, frameHeightAttack));
-    } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left) || sf::Keyboard::isKeyPressed(sf::Keyboard::Right) ||
-               sf::Keyboard::isKeyPressed(sf::Keyboard::Up) || sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) {
-        playerSprite.setTexture(texture);
-        playerSprite.setTextureRect(sf::IntRect(currentFrame * frameWidthRun, 0, frameWidthRun, frameHeightRun));
+    if (isDying) {
+        // During death animation, only draw death frames and health; clear everything else
+        // Center the death sprite so frames don't shift
+        if (deathFrame >= numDeathFrames) deathFrame = numDeathFrames - 1;
+        deathSprite.setTextureRect(sf::IntRect(deathFrame * deathFrameWidth, 0, deathFrameWidth, deathFrameHeight));
+        deathSprite.setOrigin(deathFrameWidth / 2.0f, deathFrameHeight / 2.0f);
+        sf::Vector2f centerPos = position + sf::Vector2f(frameWidthRun / 2.0f, frameHeightRun / 2.0f);
+        deathSprite.setPosition(centerPos);
+        window.draw(deathSprite);
     } else {
-        playerSprite.setTexture(reloadTexture);
-        playerSprite.setTextureRect(sf::IntRect(reloadCurrentFrame * frameWidthReload, 0, frameWidthReload, frameHeightReload));
+        // Dibujar jugador centrado (usando pivote en centro de frame) y aplicar vibración en la posición de dibujo
+        sf::Sprite playerSprite;
+        int pw = frameWidthRun;
+        int ph = frameHeightRun;
+        if (isAttacking) {
+            playerSprite.setTexture(attackTexture);
+            playerSprite.setTextureRect(sf::IntRect(attackFrames[attackCurrentIndex] * frameWidthAttack, 0, frameWidthAttack, frameHeightAttack));
+            // use attack frame size for origin
+            playerSprite.setOrigin(frameWidthAttack / 2.0f, frameHeightAttack / 2.0f);
+            // center position based on player's run frame center
+            playerSprite.setPosition(position + sf::Vector2f(pw/2.0f + shakeOffset, ph/2.0f));
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left) || sf::Keyboard::isKeyPressed(sf::Keyboard::Right) ||
+                   sf::Keyboard::isKeyPressed(sf::Keyboard::Up) || sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) {
+            playerSprite.setTexture(texture);
+            playerSprite.setTextureRect(sf::IntRect(currentFrame * frameWidthRun, 0, frameWidthRun, frameHeightRun));
+            playerSprite.setOrigin(pw / 2.0f, ph / 2.0f);
+            playerSprite.setPosition(position + sf::Vector2f(pw/2.0f + shakeOffset, ph/2.0f));
+        } else {
+            playerSprite.setTexture(reloadTexture);
+            playerSprite.setTextureRect(sf::IntRect(reloadCurrentFrame * frameWidthReload, 0, frameWidthReload, frameHeightReload));
+            // For interpolation, use reload frame size origin if different
+            playerSprite.setOrigin(frameWidthReload / 2.0f, frameHeightReload / 2.0f);
+            playerSprite.setPosition(position + sf::Vector2f(pw/2.0f + shakeOffset, ph/2.0f));
+        }
+        window.draw(playerSprite);
     }
-    playerSprite.setPosition(position);
-    window.draw(playerSprite);
+
+    // Draw health
+    window.draw(healthSprite);
+}
+
+
+void SpriteJugador::takeDamage() {
+    hitCount++;
+    isHit = true;
+    hitClock.restart();
+    if (hitCount == 1) {
+        healthSprite.setTexture(healthTextures[1]); // VIDA_8
+    } else if (hitCount == 2) {
+        healthSprite.setTexture(healthTextures[2]); // VIDA_7
+    } else if (hitCount == 3) {
+        healthSprite.setTexture(healthTextures[3]); // VIDA_4
+    } else if (hitCount == 4) {
+        healthSprite.setTexture(healthTextures[4]); // VIDA_1
+        // Clean previous visuals so the death animation is the only thing visible
+        runTrail.clear();
+        runTrailFrame.clear();
+        reloadTrail.clear();
+        reloadTrailFrame.clear();
+        attackTrail.clear();
+        attackTrailFrame.clear();
+        projectiles.clear();
+
+        isHit = false;
+        shakeOffset = 0.0f;
+
+        isDying = true;
+        deathFrame = 0;
+        deathClock.restart();
+        deathFrameTime = 1.0f / static_cast<float>(numDeathFrames);
+    } else {
+        // Trigger immediate visible vibration for non-fatal hits
+        isHit = true;
+        shakeOffset = 8.0f; // immediate visible offset
+        hitClock.restart();
+    }
+}
+
+bool SpriteJugador::isDead() const {
+    return hitCount >= 4 && deathFrame >= numDeathFrames;
 }
 
 SpriteJugador::~SpriteJugador() {
+    (void)window;
     std::cout << "Destructor SpriteJugador called" << std::endl;
 }
+

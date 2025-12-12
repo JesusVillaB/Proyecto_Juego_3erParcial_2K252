@@ -14,11 +14,19 @@ public:
     void run();
 
 private:
+    enum State { PLAYING, GAME_OVER, WIN };
     sf::RenderWindow& window;
     Fondo fondo;
     SpriteJugador spriteJugador;
     std::vector<Enemigo> enemigos;
     sf::Clock clock;
+    State currentState;
+    sf::Font font;
+    sf::Text gameOverText;
+    sf::Text winText;
+    sf::Texture spaceshipTexture;
+    sf::Sprite spaceship;
+    bool spaceshipVisible;
 };
 
 #endif // GAME_HPP

@@ -89,6 +89,14 @@ float Fondo::getCollisionY() const {
     return collisionY;
 }
 
+sf::Vector2f Fondo::getBackgroundPosition() const {
+    return backgroundSprite.getPosition();
+}
+
+bool Fondo::isAtEnd() const {
+    return backgroundSprite.getPosition().x <= limitX;
+}
+
 Fondo::~Fondo() {
     std::cout << "Destructor Fondo called" << std::endl;
 }

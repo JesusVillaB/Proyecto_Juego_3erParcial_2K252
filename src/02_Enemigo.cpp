@@ -2,12 +2,29 @@
 #include <iostream>
 #include <cstdlib> // for rand()
 #include <cmath> // for sqrt, atan2
+#include <algorithm> // for max
 
 Enemigo::Enemigo(sf::RenderWindow& window) : 
     frameTime(0.1f), currentFrame(0), numFrames(8), frameWidth(0), frameHeight(0),
     attackFrameTime(0.2f), attackCurrentFrame(0), attackNumFrames(5), attackFrameWidth(0), attackFrameHeight(0), maxAttackTrail(5), isAttacking(false),
     moveInterval(1.0f), canMove(true),
-    bulletFrameTime(0.05f), bulletNumFrames(4), bulletFrameWidth(0), bulletFrameHeight(0) {
+    bulletFrameTime(0.05f), bulletNumFrames(4), bulletFrameWidth(0), bulletFrameHeight(0),
+    hitCount(0), isDead(false), exploding(false), explosionFrame(0), numExplosionFrames(7), explosionFrameTime(0.4f / 7.0f) {
+    init(window);
+    setPosition(sf::Vector2f(400, 300));
+}
+
+Enemigo::Enemigo(sf::RenderWindow& window, sf::Vector2f pos) : 
+    frameTime(0.1f), currentFrame(0), numFrames(8), frameWidth(0), frameHeight(0),
+    attackFrameTime(0.2f), attackCurrentFrame(0), attackNumFrames(5), attackFrameWidth(0), attackFrameHeight(0), maxAttackTrail(5), isAttacking(false),
+    moveInterval(1.0f), canMove(true),
+    bulletFrameTime(0.05f), bulletNumFrames(4), bulletFrameWidth(0), bulletFrameHeight(0),
+    hitCount(0), isDead(false), exploding(false), explosionFrame(0), numExplosionFrames(7), explosionFrameTime(0.4f / 7.0f) {
+    init(window);
+    setPosition(pos);
+}
+
+void Enemigo::init(sf::RenderWindow& window) {
     (void)window; // Suppress unused parameter warning
     if (!texture.loadFromFile("assets/Enemigos/Robot.png")) {
         std::cerr << "Error loading enemy texture" << std::endl;
@@ -30,12 +47,27 @@ Enemigo::Enemigo(sf::RenderWindow& window) :
     bulletFrameWidth = bulletTexture.getSize().x / bulletNumFrames;
     bulletFrameHeight = bulletTexture.getSize().y;
 
+    if (!explosionTexture.loadFromFile("assets/Efectos visuales/Explosion enemiga.png")) {
+        std::cerr << "Error loading explosion texture" << std::endl;
+        // Do not return; allow enemy to exist without explosion texture
+    } else {
+        explosionSprite.setTexture(explosionTexture);
+        int explosionFrameWidth = explosionTexture.getSize().x / numExplosionFrames;
+        int explosionFrameHeight = explosionTexture.getSize().y;
+        explosionSprite.setOrigin(explosionFrameWidth / 2.0f, explosionFrameHeight / 2.0f);
+
+        // Calculate desired diameter
+        float desiredDiameter = static_cast<float>(std::max(frameWidth, frameHeight)) * 1.8f;
+        // Initialize circle-based shape with desired diameter
+        explosionShape.setRadius(desiredDiameter / 2.0f);
+        explosionShape.setOrigin(desiredDiameter / 2.0f, desiredDiameter / 2.0f);
+        explosionShape.setFillColor(sf::Color(255,140,0,255));
+
+        std::cout << "Loaded explosion texture: size=" << explosionTexture.getSize().x << "x" << explosionTexture.getSize().y << " frames=" << numExplosionFrames << "\n";
+    }
+
     setTexture(texture);
     setPosition(sf::Vector2f(400, 300)); // Initial position
-}
-
-Enemigo::Enemigo(sf::RenderWindow& window, sf::Vector2f pos) : Enemigo(window) {
-    setPosition(pos);
 }
 
 Enemigo::~Enemigo() {
@@ -110,9 +142,17 @@ void Enemigo::update(float deltaTime, sf::Vector2f playerPos, float collisionY, 
                     direction /= distance; // Normalizar
                     float speed = 200.0f; // Velocidad del proyectil
                     sf::Vector2f velocity = direction * speed;
-                    // Añadir componente vertical para arco
-                    velocity.y += 50.0f; // Arco hacia arriba inicialmente
-                    projectiles.push_back({enemyPos, velocity, 0, sf::Clock(), {}, {}, 5});
+                    // 50% homing, 50% deviate with random direction
+                    if (rand() % 100 < 50) {
+                        // Homing
+                        projectiles.push_back({enemyPos, velocity, 0, sf::Clock(), {}, {}, 5, true});
+                    } else {
+                        // Deviate: random direction
+                        float angle = (rand() % 360) * 3.14159f / 180.0f;
+                        direction = sf::Vector2f(std::cos(angle), std::sin(angle));
+                        velocity = direction * speed;
+                        projectiles.push_back({enemyPos, velocity, 0, sf::Clock(), {}, {}, 5, false});
+                    }
                 }
                 isAttacking = false;
                 canMove = true;
@@ -144,24 +184,23 @@ void Enemigo::update(float deltaTime, sf::Vector2f playerPos, float collisionY, 
 
     // Update projectiles
     for (auto it = projectiles.begin(); it != projectiles.end(); ) {
-        // Homing: recalcular dirección hacia playerPos
-        sf::Vector2f direction = playerPos - it->position;
-        float distance = std::sqrt(direction.x * direction.x + direction.y * direction.y);
-        if (distance > 0) {
-            direction /= distance;
-            float speed = 200.0f;
-            it->velocity = direction * speed;
+        // Homing: recalcular dirección hacia playerPos only if homing
+        if (it->isHoming) {
+            sf::Vector2f direction = playerPos - it->position;
+            float distance = std::sqrt(direction.x * direction.x + direction.y * direction.y);
+            if (distance > 0) {
+                direction /= distance;
+                float speed = 200.0f;
+                it->velocity = direction * speed;
+            }
         }
         it->velocity.y += 100.0f * deltaTime; // Gravedad
         it->position += it->velocity * deltaTime;
 
-        // Check collision with player
-        sf::Vector2f diff = playerPos - it->position;
-        float dist = std::sqrt(diff.x * diff.x + diff.y * diff.y);
-        if (dist < 30.0f) { // Assuming player radius ~30
-            it = projectiles.erase(it);
-            continue;
-        }
+        // Do not erase projectiles here when they reach the player; Game will handle collisions and deletion
+        (void)playerPos; // unused here
+        // Keep projectile movement and animation
+
 
         // Animación del proyectil
         if (it->clock.getElapsedTime().asSeconds() >= bulletFrameTime) {
@@ -176,16 +215,50 @@ void Enemigo::update(float deltaTime, sf::Vector2f playerPos, float collisionY, 
             }
         }
 
-        // Remover si sale de pantalla
-        if (it->position.x < 0 || it->position.x > 800 || it->position.y < 0 || it->position.y > 600) {
+        // Remover si sale de pantalla (doubled range)
+        if (it->position.x < -800 || it->position.x > 1600 || it->position.y < -600 || it->position.y > 1200) {
             it = projectiles.erase(it);
         } else {
             ++it;
         }
     }
+
+    // Update explosion
+    if (exploding) {
+        if (explosionFrame < numExplosionFrames - 1) {
+            if (explosionClock.getElapsedTime().asSeconds() >= explosionFrameTime) {
+                explosionFrame++;
+                std::cout << "Explosion frame " << explosionFrame << " / " << numExplosionFrames << "\n";
+                explosionClock.restart();
+            }
+        } else {
+            // We're on last frame; keep it visible for one more frameTime then mark for removal
+            if (explosionClock.getElapsedTime().asSeconds() >= explosionFrameTime) {
+                std::cout << "Explosion finished\n";
+                isDead = true;
+            }
+        }
+    }
 }
 
 void Enemigo::draw(sf::RenderWindow& window) {
+    if (exploding) {
+        if (explosionFrame < numExplosionFrames) {
+            // Use circle-based animation with a growing radius and fading alpha
+            float desiredDiameter = static_cast<float>(std::max(frameWidth, frameHeight)) * 1.8f;
+            float radius = (desiredDiameter * (static_cast<float>(explosionFrame + 1) / static_cast<float>(numExplosionFrames))) / 2.0f;
+            explosionShape.setRadius(radius);
+            explosionShape.setOrigin(radius, radius);
+            // Fade out alpha across frames
+            sf::Uint8 alpha = static_cast<sf::Uint8>(255.0f * (1.0f - static_cast<float>(explosionFrame) / static_cast<float>(numExplosionFrames - 1)));
+            sf::Color c = explosionShape.getFillColor();
+            c.a = alpha;
+            explosionShape.setFillColor(c);
+            window.draw(explosionShape);
+        }
+        return; // Don't draw enemy
+    }
+
     if (isAttacking) {
         // Draw attack trail
         for (size_t i = 0; i < attackTrail.size(); ++i) {
@@ -227,4 +300,47 @@ void Enemigo::draw(sf::RenderWindow& window) {
         bulletSprite.setTextureRect(sf::IntRect(proj.currentFrame * bulletFrameWidth, 0, bulletFrameWidth, bulletFrameHeight));
         window.draw(bulletSprite);
     }
+}
+
+void Enemigo::takeDamage() {
+    hitCount++;
+    if (hitCount >= 4 && !exploding) {
+        // Start explosion animation at enemy center and clear enemy visuals
+        exploding = true;
+        explosionFrame = 0;
+        // Ensure frame timing is based on number of frames (total 0.4s)
+        if (numExplosionFrames <= 0) numExplosionFrames = 1;
+        explosionFrameTime = 0.4f / static_cast<float>(numExplosionFrames);
+        explosionClock.restart();
+
+        // Set explosion position to current enemy position (centered)
+        sf::Vector2f enemyPos = getPosition();
+        explosionSprite.setPosition(enemyPos.x + frameWidth / 2.0f, enemyPos.y + frameHeight / 2.0f);
+        explosionShape.setPosition(enemyPos.x + frameWidth / 2.0f, enemyPos.y + frameHeight / 2.0f);
+
+        // Log start
+        std::cout << "Enemy explosion started at (" << enemyPos.x << "," << enemyPos.y << ")\n";
+
+        // Clear any lingering visuals and projectiles at this enemy
+        projectiles.clear();
+        attackTrail.clear();
+        attackTrailFrame.clear();
+
+        // Immediately set the first frame visible and setup circle radius
+        if (numExplosionFrames > 0) {
+            float desiredDiameter = static_cast<float>(std::max(frameWidth, frameHeight)) * 1.8f;
+            float radius = desiredDiameter * (1.0f / (2.0f * static_cast<float>(numExplosionFrames)));
+            explosionShape.setRadius(radius);
+            explosionShape.setOrigin(radius, radius);
+            explosionShape.setFillColor(sf::Color(255,140,0,255));
+        }
+
+        // Stop movement/attacking
+        canMove = false;
+        isAttacking = false;
+    }
+}
+
+bool Enemigo::isEnemyDead() const {
+    return isDead;
 }

@@ -48,6 +48,7 @@ private:
         vector<sf::Vector2f> trail;
         vector<int> trailFrame;
         size_t maxTrail;
+        bool isHoming;
     };
     vector<Projectile> projectiles;
     float bulletFrameTime;
@@ -55,14 +56,36 @@ private:
     int bulletFrameWidth;
     int bulletFrameHeight;
 
+    // Health and death
+    int hitCount;
+    bool isDead;
+    // Explosion animation
+    bool exploding;
+    int explosionFrame;
+    int numExplosionFrames;
+    float explosionFrameTime;
+    sf::Texture explosionTexture;
+    sf::Sprite explosionSprite;
+    sf::Clock explosionClock;
+
+    // Fallback explosion shape (circle)
+    sf::CircleShape explosionShape;
+
 public:
+    vector<Projectile>& getProjectiles() { return projectiles; }
+    bool isExploding() const { return exploding; }
+    void takeDamage();
+    bool isEnemyDead() const;
+    void update(float deltaTime, sf::Vector2f playerPos, float collisionY, float floorY);
+    void draw(sf::RenderWindow& window);
     Enemigo(sf::RenderWindow& window);
     Enemigo(sf::RenderWindow& window, sf::Vector2f pos);
     ~Enemigo();
 
+private:
+    void init(sf::RenderWindow& window);
+
     void patrullar(); // ahora para movimiento aleatorio
     void atacarJugador(sf::Vector2f playerPos);
     void morir();
-    void update(float deltaTime, sf::Vector2f playerPos, float collisionY, float floorY);
-    void draw(sf::RenderWindow& window);
 };

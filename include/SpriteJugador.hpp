@@ -11,9 +11,38 @@ public:
     void update(float deltaTime, float collisionY, float floorY);
     void draw(sf::RenderWindow& window);
     sf::Vector2f getPosition() const { return position; }
+    void takeDamage();
+    bool isDead() const;
+
+    struct Projectile {
+        sf::Vector2f position;
+        int currentFrame;
+        sf::Clock clock;
+    };
+
+    std::vector<Projectile>& getProjectiles() { return projectiles; }
 
 private:
     sf::RenderWindow& window;
+
+    // Health
+    int hitCount;
+    bool isHit;
+    sf::Clock hitClock;
+    float shakeOffset;
+    sf::Sprite healthSprite;
+    sf::Texture healthTextures[5]; // 10,8,7,4,1
+
+    // Death
+    bool isDying;
+    sf::Clock deathClock;
+    int deathFrame;
+    int numDeathFrames;
+    float deathFrameTime;
+    sf::Sprite deathSprite;
+    sf::Texture deathTexture;
+    int deathFrameWidth;
+    int deathFrameHeight;
 
     // Texturas
     sf::Texture texture;
@@ -62,11 +91,6 @@ private:
     std::vector<int> attackTrailFrame;
     size_t maxTrail;
 
-    struct Projectile {
-        sf::Vector2f position;
-        int currentFrame;
-        sf::Clock clock;
-    };
     std::vector<Projectile> projectiles;
 
     float velocidad; // pixels per second
