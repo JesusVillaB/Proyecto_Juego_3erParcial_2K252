@@ -1,0 +1,245 @@
+@startuml Ironclad
+class JuegoIronclad {
+    - mapaActual
+    - jugador
+    - niveles
+    - estadoJuego
+
+    + iniciarJuego()
+    + cargarNivel()
+    + actualizar()
+    + renderizar()
+    + manejarEntrada()
+}
+
+class Mapa {
+    - personajes
+    - consumibles
+    - obstaculos
+    - sonidos
+    - efectos
+    - nivel
+
+    + cargar()
+    + actualizar()
+    + renderizar()
+    + agregarPersonaje()
+    + agregarObjeto()
+}
+
+class Personaje  {
+    - nombre
+    - posicion
+    - velocidad
+    - vida
+    - sonidoPaso
+
+    + mover()
+    + recibirDanio()
+    + atacar()
+    + actualizar()
+    + renderizar()
+}
+
+class Objeto {
+    - nombre
+    - peso
+
+    + usar()
+    + recoger()
+    + actualizar()
+}
+
+class Arma {
+    - municion
+    - cadencia
+    + disparar()
+    + recargar()
+}
+
+class Proyectil {
+    - velocidad
+    - daño
+    - posicion
+
+    + mover()
+    + colisionar()
+}
+
+class Vehiculo {
+    - velocidadMaxima
+    - combustible
+
+    + montar()
+    + desmontar()
+    + mover()
+}
+
+class Sonido {
+    - ruta
+    - volumen
+    - loop
+
+    + reproducir()
+    + detener()
+    + pausar()
+}
+
+class Nivel {
+    - id
+    - nombre
+    - dificultad
+    - duracion
+
+    + cargar()
+    + iniciar()
+    + completar()
+}
+
+class EfectoEspecial{
+    - duracion
+    - sonido
+    - efectoVisual
+
+    + activar()
+    + desactivar()
+    + actualizar()
+}
+
+class EfectoVisual {
+    - particulas
+    - sacudidaCamara
+
+    + reproducir()
+    + actualizar()
+    + renderizar()
+}
+
+class Enemigo {
+    - objetos
+
+    + patrullar()
+    + atacarJugador()
+    + morir()
+}
+
+class Jugador {
+    - inventario
+    - habilidades
+
+    + usarObjeto()
+    + activarHabilidad()
+    + saltar()
+    + disparar()
+}
+
+class Jefe {
+    - habilidades
+    - objetos
+    - generadores
+
+    + ejecutarHabilidadEspecial()
+    + invocarEnemigos()
+    + cambiarFase()
+}
+
+class Consumible {
+    - tipo
+    - cantidad
+
+    + aplicar()
+}
+
+class Musica {
+    - transicion
+
+    + fadeIn()
+    + fadeOut()
+}
+
+class Obstaculo {
+    - resistencia
+    - sonidoGolpe
+
+    + colisionar()
+    + destruir()
+    + renderizar()
+}
+
+class Habilidad {
+    - nombre
+    - cooldown
+    - duracion
+
+    + activar()
+    + desactivar()
+    + actualizar()
+}
+
+class Generador {
+    - frecuencia
+    - ultimoSpawn
+    - tipoEnemigo
+
+    + generarEnemigo()
+    + actualizar()
+}
+
+class Particula {
+    - posicion
+    - vida
+    - velocidad
+
+    + actualizar()
+    + renderizar()
+}
+
+class SacudidaCamara {
+    - intensidad
+    - duracion
+
+    + iniciar()
+    + actualizar()
+}
+
+JuegoIronclad *-- Mapa
+
+Mapa *-- Personaje
+Mapa o-- Sonido
+Mapa *-- Consumible
+Mapa *-- Obstaculo
+Mapa *-- Nivel
+Mapa o-- EfectoEspecial
+
+Personaje <|-- Jefe
+Personaje <|-- Enemigo
+Personaje <|-- Jugador
+Personaje o-- Sonido
+
+Objeto <|-- Vehiculo
+Objeto <|-- Arma
+
+Arma o-- Proyectil
+
+Jugador *-- Objeto
+Jugador *-- Habilidad
+
+Enemigo *-- Objeto
+
+Jefe *-- Habilidad
+Jefe *-- Objeto
+Jefe *-- Generador
+
+Generador o-- Enemigo
+
+Sonido <|-- Musica
+
+EfectoEspecial o-- Sonido
+EfectoEspecial *-- EfectoVisual
+
+EfectoVisual *-- Particula
+EfectoVisual *-- SacudidaCamara
+
+Obstaculo o-- Sonido
+
+@enduml
